@@ -15,7 +15,7 @@ Real-time GTO and exploitative poker strategy assistant with HUD integration and
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/poker-assistant.git
+git clone https://github.com/xuzinann/poker-assistant.git
 cd poker-assistant
 
 # Install dependencies

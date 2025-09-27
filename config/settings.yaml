@@ -1,7 +1,7 @@
 # Poker Assistant Configuration
 
 # Poker site configuration
-site: pokerstars  # pokerstars, ggpoker, partypoker, 888poker
+site: betonline  # betonline, pokerstars, ggpoker, partypoker, 888poker
 hero_name: Hero   # Your username
 
 # Database settings

@@ -140,7 +140,8 @@ class PokerAssistant:
             self.history_monitor.setup_default_directories()
         
         # Add custom directories
-        for directory in config.get('directories', []):
+        directories = config.get('directories', []) or []
+        for directory in directories:
             site = directory.get('site', self.site)
             path = directory.get('path')
             if path:
