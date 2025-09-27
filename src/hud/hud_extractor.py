@@ -141,7 +141,10 @@ class HUDExtractor:
             
             # Capture username
             username_image = self.screen_capture.capture_named_region(f"username_{position}")
-            username = self.ocr.extract_player_name(username_image) if username_image is not None else "Unknown"
+            username = None
+            if username_image is not None:
+                username = self.ocr.extract_player_name(username_image)
+            username = username if username else f"Unknown_{position}"
             
             # Extract stats from HUD
             stats = self.ocr.extract_hud_stats(hud_image)
@@ -251,6 +254,11 @@ class HUDExtractor:
     def _update_database(self, player_stats: PlayerHUDStats):
         """Update database with extracted HUD stats"""
         try:
+            # Skip if username is None or empty
+            if not player_stats.username:
+                logger.debug(f"Skipping database update for position {player_stats.position}: no username")
+                return
+            
             # Get or create player
             player = self.db.get_or_create_player(player_stats.username, self.site)
             

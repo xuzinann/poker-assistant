@@ -38,6 +38,9 @@ class DatabaseManager:
     # Player Management
     def get_or_create_player(self, username: str, site: str, is_hero: bool = False) -> Player:
         """Get existing player or create new one"""
+        if not username:
+            raise ValueError("Username cannot be None or empty")
+        
         session = self.SessionLocal()
         try:
             player = session.query(Player).filter_by(
