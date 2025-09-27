@@ -1,0 +1,81 @@
+# Poker Assistant Configuration
+
+# Poker site configuration
+site: pokerstars  # pokerstars, ggpoker, partypoker, 888poker
+hero_name: Hero   # Your username
+
+# Database settings
+database:
+  path: data/poker.db
+  backup_enabled: true
+  backup_interval: 86400  # 24 hours in seconds
+
+# OCR settings for text extraction
+ocr:
+  engine: pytesseract  # pytesseract or easyocr
+  confidence_threshold: 0.85
+  preprocessing:
+    - grayscale
+    - threshold
+    - denoise
+
+# Screen capture settings
+capture:
+  update_interval: 1.0  # seconds
+  monitor_index: 1      # Which monitor to capture (1 = primary)
+  save_screenshots: false
+  screenshot_dir: data/screenshots
+
+# Table detection (manual configuration)
+# Adjust these values to match your poker table window
+table:
+  x: 100
+  y: 100
+  width: 800
+  height: 600
+
+# Hand history monitoring
+hand_history:
+  auto_detect: true  # Automatically find hand history directories
+  scan_interval: 1.0  # seconds
+  max_file_age_hours: 24
+  directories:  # Additional directories to monitor
+    # - path: /path/to/hand/histories
+    #   site: pokerstars
+
+# HUD configuration
+hud:
+  enabled: true
+  update_interval: 2.0  # seconds
+  min_hands_for_stats: 30  # Minimum hands for reliable stats
+  color_coding:
+    nit: '#FF0000'      # Red - Very tight players
+    tag: '#00FF00'      # Green - Tight aggressive
+    lag: '#FFA500'      # Orange - Loose aggressive
+    fish: '#0000FF'     # Blue - Loose passive
+    reg: '#FFFFFF'      # White - Regular
+
+# Overlay display settings
+overlay:
+  enabled: true
+  opacity: 0.8
+  position: top-right  # top-left, top-right, bottom-left, bottom-right
+  hotkeys:
+    toggle: F1
+    refresh: F5
+    screenshot: F12
+
+# Strategy settings
+strategy:
+  mode: balanced  # gto, exploitative, balanced
+  suggestion_threshold: 0.7  # Confidence threshold for suggestions
+  show_ev: true  # Show expected value calculations
+  show_ranges: true  # Show recommended ranges
+
+# Logging configuration
+logging:
+  level: INFO  # DEBUG, INFO, WARNING, ERROR
+  file_enabled: true
+  file_path: logs/poker_assistant.log
+  rotation: 1 day
+  retention: 7 days

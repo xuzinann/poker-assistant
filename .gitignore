@@ -1,0 +1,64 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+data/*.db
+
+# Logs
+logs/
+*.log
+
+# Screenshots
+data/screenshots/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Config with personal data
+config/personal_settings.yaml
+config/my_*.yaml
+
+# Test files
+data/test*.db
+
+# Environment
+.env
+.env.local
+
+# Hand histories (may contain personal data)
+data/hands/
+data/hand_history/
+
+# Cache
+.cache/
+*.cache

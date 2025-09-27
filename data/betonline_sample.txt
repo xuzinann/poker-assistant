@@ -1,0 +1,70 @@
+Hand #3890432123 - Tournament #123456 - Holdem(No Limit) - Level 5 (75/150) - 2024/01/15 20:30:45
+Table: Table 12 (6 max)
+Seat 1: Player1 ($5,234)
+Seat 2: Hero ($3,456) 
+Seat 3: Villain1 ($2,890)
+Seat 4: Villain2 ($4,567)
+Seat 5: Player3 ($3,210)
+Seat 6: BigStack ($8,901)
+Dealer: Seat 6
+Player1 posted Small Blind $75
+Hero posted Big Blind $150
+*** HOLE CARDS ***
+Dealt to Hero [Ah Kd]
+Villain1: folds
+Villain2: raises $350
+Player3: folds
+BigStack: folds
+Player1: folds
+Hero: raises $900
+Villain2: calls $550
+*** FLOP *** [As 7c 2h]
+Hero: bets $600
+Villain2: calls $600
+*** TURN *** [As 7c 2h] [Qd]
+Hero: checks
+Villain2: bets $1,200
+Hero: calls $1,200
+*** RIVER *** [As 7c 2h Qd] [5s]
+Hero: checks
+Villain2: checks
+*** SHOWDOWN ***
+Hero shows [Ah Kd]
+Villain2 shows [Ac Jc]
+Hero wins $5,675
+Total Pot: $5,675
+Rake: $0
+
+Hand #3890432124 - Tournament #123456 - Holdem(No Limit) - Level 5 (75/150) - 2024/01/15 20:33:12
+Table: Table 12 (6 max)
+Seat 1: Player1 ($5,159)
+Seat 2: Hero ($6,431) 
+Seat 3: Villain1 ($2,890)
+Seat 4: Villain2 ($1,867)
+Seat 5: Player3 ($3,210)
+Seat 6: BigStack ($8,901)
+Dealer: Seat 1
+Hero posted Small Blind $75
+Villain1 posted Big Blind $150
+*** HOLE CARDS ***
+Dealt to Hero [9c 9s]
+Villain2: folds
+Player3: raises $300
+BigStack: folds
+Player1: folds
+Hero: calls $225
+Villain1: folds
+*** FLOP *** [9h 5d 2c]
+Hero: checks
+Player3: bets $450
+Hero: raises $1,200
+Player3: all-in $2,760
+Hero: calls $1,560
+*** TURN *** [9h 5d 2c] [Js]
+*** RIVER *** [9h 5d 2c Js] [4c]
+*** SHOWDOWN ***
+Hero shows [9c 9s]
+Player3 shows [Kh Kd]
+Hero wins $6,570
+Total Pot: $6,570
+Rake: $0

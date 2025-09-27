@@ -1,0 +1,98 @@
+# BetOnline Poker Configuration
+
+# Poker site configuration
+site: betonline
+hero_name: YourBetOnlineUsername  # Replace with your username
+
+# Database settings
+database:
+  path: data/betonline_poker.db
+  backup_enabled: true
+  backup_interval: 86400  # 24 hours in seconds
+
+# OCR settings for text extraction
+ocr:
+  engine: pytesseract
+  confidence_threshold: 0.85
+  preprocessing:
+    - grayscale
+    - threshold
+    - denoise
+
+# Screen capture settings
+capture:
+  update_interval: 1.0  # seconds
+  monitor_index: 1      # Which monitor to capture (1 = primary)
+  save_screenshots: false
+  screenshot_dir: data/screenshots
+
+# Table detection for BetOnline
+# IMPORTANT: Adjust these values to match your BetOnline table window
+table:
+  x: 100      # X position of your table window
+  y: 100      # Y position of your table window
+  width: 800  # Width of your table window
+  height: 600 # Height of your table window
+
+# Hand history monitoring
+hand_history:
+  auto_detect: false  # BetOnline uses different paths
+  scan_interval: 1.0  # seconds
+  max_file_age_hours: 24
+  directories:
+    # Windows paths
+    - path: C:\Users\YourName\AppData\Local\BetOnline\HandHistory
+      site: betonline
+    - path: C:\Users\YourName\Documents\BetOnline\HandHistory
+      site: betonline
+    # macOS paths  
+    # - path: /Users/YourName/Library/Application Support/BetOnline/HandHistory
+    #   site: betonline
+    # - path: /Users/YourName/Documents/BetOnline/HandHistory
+    #   site: betonline
+
+# HUD configuration for BetOnline
+hud:
+  enabled: true
+  update_interval: 2.0  # seconds
+  min_hands_for_stats: 30  # Minimum hands for reliable stats
+  
+  # BetOnline HUD region configuration
+  # Adjust these based on where HUD stats appear
+  stat_regions:
+    vpip: {row: 0, col: 0}
+    pfr: {row: 0, col: 1}
+    3bet: {row: 1, col: 0}
+    cbet: {row: 1, col: 1}
+    
+  color_coding:
+    nit: '#FF0000'      # Red - Very tight players
+    tag: '#00FF00'      # Green - Tight aggressive
+    lag: '#FFA500'      # Orange - Loose aggressive
+    fish: '#0000FF'     # Blue - Loose passive
+    reg: '#FFFFFF'      # White - Regular
+
+# Overlay display settings
+overlay:
+  enabled: true
+  opacity: 0.8
+  position: top-right
+  hotkeys:
+    toggle: F1
+    refresh: F5
+    screenshot: F12
+
+# Strategy settings
+strategy:
+  mode: balanced  # gto, exploitative, balanced
+  suggestion_threshold: 0.7
+  show_ev: true
+  show_ranges: true
+
+# Logging configuration
+logging:
+  level: INFO  # DEBUG, INFO, WARNING, ERROR
+  file_enabled: true
+  file_path: logs/betonline_assistant.log
+  rotation: 1 day
+  retention: 7 days

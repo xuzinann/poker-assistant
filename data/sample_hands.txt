@@ -1,0 +1,103 @@
+PokerStars Hand #234567890: Hold'em No Limit ($0.50/$1.00) - 2024/01/15 14:22:10 ET
+Table 'Fortuna IV' 6-max Seat #3 is the button
+Seat 1: TightPlayer ($98.50 in chips)
+Seat 2: LAGmaster ($105.25 in chips)
+Seat 3: Hero ($100.00 in chips)
+Seat 4: FishyFish ($87.30 in chips)
+Seat 5: RegularReg ($102.00 in chips)
+Seat 6: NittyNit ($95.75 in chips)
+FishyFish: posts small blind $0.50
+RegularReg: posts big blind $1
+*** HOLE CARDS ***
+Dealt to Hero [As Ks]
+NittyNit: folds
+TightPlayer: raises $2.50 to $3.50
+LAGmaster: calls $3.50
+Hero: raises $11 to $14.50
+FishyFish: folds
+RegularReg: folds
+TightPlayer: calls $11
+LAGmaster: folds
+*** FLOP *** [Kc 7d 2s]
+TightPlayer: checks
+Hero: bets $18
+TightPlayer: calls $18
+*** TURN *** [Kc 7d 2s] [3h]
+TightPlayer: checks
+Hero: bets $35
+TightPlayer: folds
+Hero collected $65.50 from pot
+*** SUMMARY ***
+Total pot $68.50 | Rake $3
+Board [Kc 7d 2s 3h]
+Seat 1: TightPlayer folded on the Turn
+Seat 3: Hero (button) collected ($65.50)
+
+
+PokerStars Hand #234567891: Hold'em No Limit ($0.50/$1.00) - 2024/01/15 14:25:33 ET
+Table 'Fortuna IV' 6-max Seat #4 is the button
+Seat 1: TightPlayer ($66.00 in chips)
+Seat 2: LAGmaster ($101.75 in chips)
+Seat 3: Hero ($133.00 in chips)
+Seat 4: FishyFish ($86.80 in chips)
+Seat 5: RegularReg ($101.00 in chips)
+Seat 6: NittyNit ($95.75 in chips)
+RegularReg: posts small blind $0.50
+NittyNit: posts big blind $1
+*** HOLE CARDS ***
+Dealt to Hero [9h 9c]
+TightPlayer: folds
+LAGmaster: raises $2.50 to $3.50
+Hero: calls $3.50
+FishyFish: calls $3.50
+RegularReg: folds
+NittyNit: folds
+*** FLOP *** [9d 5s 2c]
+LAGmaster: bets $6
+Hero: raises $15 to $21
+FishyFish: folds
+LAGmaster: calls $15
+*** TURN *** [9d 5s 2c] [Jh]
+LAGmaster: checks
+Hero: bets $28
+LAGmaster: raises $49.25 to $77.25 and is all-in
+Hero: calls $49.25
+*** RIVER *** [9d 5s 2c Jh] [4c]
+*** SHOW DOWN ***
+LAGmaster: shows [Js Jd] (three of a kind, Jacks)
+Hero: shows [9h 9c] (three of a kind, Nines)
+LAGmaster collected $205.50 from pot
+*** SUMMARY ***
+Total pot $208.50 | Rake $3
+Board [9d 5s 2c Jh 4c]
+Seat 2: LAGmaster showed [Js Jd] and won ($205.50) with three of a kind, Jacks
+Seat 3: Hero showed [9h 9c] and lost with three of a kind, Nines
+
+
+PokerStars Hand #234567892: Hold'em No Limit ($0.50/$1.00) - 2024/01/15 14:28:15 ET
+Table 'Fortuna IV' 6-max Seat #5 is the button
+Seat 1: TightPlayer ($66.00 in chips)
+Seat 2: LAGmaster ($205.50 in chips)
+Seat 3: Hero ($100.00 in chips)
+Seat 4: FishyFish ($83.30 in chips)
+Seat 5: RegularReg ($100.50 in chips)
+Seat 6: NittyNit ($94.75 in chips)
+NittyNit: posts small blind $0.50
+TightPlayer: posts big blind $1
+*** HOLE CARDS ***
+Dealt to Hero [Qh Qd]
+LAGmaster: raises $2.50 to $3.50
+Hero: raises $9 to $12.50
+FishyFish: folds
+RegularReg: folds
+NittyNit: folds
+TightPlayer: folds
+LAGmaster: calls $9
+*** FLOP *** [Tc 8h 3s]
+LAGmaster: checks
+Hero: bets $15
+LAGmaster: folds
+Hero collected $25 from pot
+*** SUMMARY ***
+Total pot $26.50 | Rake $1.50
+Seat 3: Hero collected ($25)

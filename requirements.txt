@@ -1,0 +1,37 @@
+# Core dependencies
+mss>=9.0.1           # Screen capture
+Pillow>=10.0.0       # Image processing
+pytesseract>=0.3.10  # OCR processing
+easyocr>=1.7.0       # Alternative OCR
+opencv-python>=4.8.0 # Image preprocessing
+
+# Database
+sqlalchemy>=2.0.0    # ORM
+alembic>=1.12.0      # Database migrations
+
+# Data processing
+pandas>=2.0.0        # Statistical calculations
+numpy>=1.24.0        # Numerical operations
+
+# UI
+PyQt5>=5.15.0        # Overlay interface
+pyqtgraph>=0.13.0    # Graphing
+
+# File monitoring
+watchdog>=3.0.0      # Hand history monitoring
+
+# Utilities
+pyyaml>=6.0          # Configuration files
+apscheduler>=3.10.0  # Scheduled tasks
+loguru>=0.7.0        # Logging
+python-dotenv>=1.0.0 # Environment variables
+
+# Testing
+pytest>=7.4.0        # Testing framework
+pytest-cov>=4.1.0    # Coverage reports
+pytest-mock>=3.11.0  # Mocking
+
+# Development
+black>=23.0.0        # Code formatting
+flake8>=6.0.0        # Linting
+mypy>=1.5.0          # Type checking
