@@ -20,6 +20,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from database.manager import DatabaseManager
 from capture.screen_capture import ScreenCapture, CaptureRegion
 from capture.ocr_engine import OCREngine
+from capture.table_reader import TableReader
 from hud.hud_extractor import HUDExtractor
 from history.history_monitor import HandHistoryMonitor
 from config.settings import Settings
@@ -45,6 +46,13 @@ class PokerAssistant:
             self.screen_capture,
             self.ocr_engine,
             self.db,
+            self.site
+        )
+        
+        # Table reader for capturing hands from screen
+        self.table_reader = TableReader(
+            self.screen_capture,
+            self.ocr_engine,
             self.site
         )
         
@@ -182,6 +190,21 @@ class PokerAssistant:
                 current_time = time.time()
                 
                 if current_time - last_update >= update_interval:
+                    # Read table state from screen
+                    table_state = self.table_reader.read_table_state()
+                    
+                    if table_state:
+                        # Check for new hand
+                        if self.table_reader.detect_new_hand(table_state):
+                            # Save previous hand if exists
+                            self.save_captured_hand()
+                            # Start tracking new hand
+                            self.table_reader.reset_hand_tracking()
+                            logger.info("New hand detected from screen")
+                        
+                        # Track actions
+                        self.table_reader.track_action(table_state)
+                    
                     # Extract HUD stats
                     self.update_hud_stats()
                     
@@ -217,6 +240,59 @@ class PokerAssistant:
         
         except Exception as e:
             logger.error(f"Failed to update HUD stats: {e}")
+    
+    def save_captured_hand(self):
+        """Save hand captured from screen to database and file"""
+        hand_record = self.table_reader.create_hand_record()
+        
+        if not hand_record:
+            return
+        
+        try:
+            # Create local hand history directory if it doesn't exist
+            hand_history_dir = Path.home() / "Documents" / "BetOnline" / "HandHistory"
+            hand_history_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Save to file
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            filename = hand_history_dir / f"hand_{timestamp}.json"
+            
+            import json
+            with open(filename, 'w') as f:
+                # Convert datetime objects to strings for JSON serialization
+                hand_data = hand_record.copy()
+                hand_data['timestamp'] = hand_data['timestamp'].isoformat()
+                for action in hand_data.get('actions', []):
+                    if 'timestamp' in action:
+                        action['timestamp'] = action['timestamp'].isoformat()
+                
+                json.dump(hand_data, f, indent=2)
+            
+            logger.info(f"Saved captured hand to {filename}")
+            
+            # Also store in database
+            self._store_hand_in_database(hand_record)
+            
+        except Exception as e:
+            logger.error(f"Failed to save captured hand: {e}")
+    
+    def _store_hand_in_database(self, hand_record: dict):
+        """Store captured hand in database"""
+        try:
+            # Extract hero name from config or use default
+            hero_name = self.config.get('hero_name', 'Hero')
+            
+            # Create player entries for all players in the hand
+            for action in hand_record.get('actions', []):
+                player_name = action.get('player')
+                if player_name:
+                    self.db.get_or_create_player(player_name, self.site, 
+                                                is_hero=(player_name == hero_name))
+            
+            logger.debug(f"Stored hand {hand_record['hand_id']} in database")
+            
+        except Exception as e:
+            logger.error(f"Failed to store hand in database: {e}")
     
     def display_stats(self):
         """Display current statistics"""

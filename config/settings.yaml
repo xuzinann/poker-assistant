@@ -33,6 +33,15 @@ table:
   y: 100
   width: 800
   height: 600
+  
+  # BetOnline specific regions (adjust these to match your table)
+  regions:
+    pot: {x: 400, y: 300, width: 200, height: 50}
+    community: {x: 300, y: 350, width: 400, height: 100}
+    hero_cards: {x: 400, y: 500, width: 150, height: 80}
+    
+  # Enable screen-based hand capture for BetOnline
+  capture_from_screen: true
 
 # Hand history monitoring
 hand_history:
