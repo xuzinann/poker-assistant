@@ -42,6 +42,9 @@ hand_history:
   directories:  # Additional directories to monitor
     # - path: /path/to/hand/histories
     #   site: pokerstars
+    # For BetOnline on Windows, uncomment and adjust:
+    # - path: C:/Users/YourName/Documents/BetOnline
+    #   site: betonline
 
 # HUD configuration
 hud:

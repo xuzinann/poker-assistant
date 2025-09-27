@@ -88,6 +88,11 @@ class HandHistoryMonitor:
             str(home / "Documents" / "PokerStars" / "HandHistory"): "PokerStars",
             str(home / "AppData" / "Local" / "PokerStars" / "HandHistory"): "PokerStars",
             
+            # BetOnline
+            str(home / "Documents" / "BetOnline" / "HandHistory"): "BetOnline",
+            str(home / "AppData" / "Local" / "BetOnline" / "HandHistory"): "BetOnline",
+            str(home / "Documents" / "BetOnlinePoker" / "HandHistory"): "BetOnline",
+            
             # GGPoker
             str(home / "Documents" / "GGPoker" / "HandHistory"): "GGPoker",
             

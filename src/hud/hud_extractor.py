@@ -144,7 +144,11 @@ class HUDExtractor:
             username = None
             if username_image is not None:
                 username = self.ocr.extract_player_name(username_image)
-            username = username if username else f"Unknown_{position}"
+            
+            # Don't create placeholder players - skip if no username detected
+            if not username:
+                logger.debug(f"No player detected at position {position}")
+                return None
             
             # Extract stats from HUD
             stats = self.ocr.extract_hud_stats(hud_image)

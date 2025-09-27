@@ -116,7 +116,8 @@ class PokerAssistant:
                 (x, y, width, height)
             )
             
-            # Setup HUD regions
+            # Setup HUD regions for 6-max table (BetOnline default)
+            # For 6-max, we only need 6 positions
             positions = {
                 "BTN": (x + width//2, y + 50, 150, 80),
                 "SB": (x + width - 200, y + 150, 150, 80),
@@ -173,6 +174,8 @@ class PokerAssistant:
         """Main application loop"""
         update_interval = self.config.get('capture', {}).get('update_interval', 1.0)
         last_update = time.time()
+        last_stats_log = time.time()
+        stats_log_interval = 30.0  # Only log stats every 30 seconds
         
         while self.is_running:
             try:
@@ -182,8 +185,10 @@ class PokerAssistant:
                     # Extract HUD stats
                     self.update_hud_stats()
                     
-                    # Update display (in production, this would update overlay)
-                    self.display_stats()
+                    # Update display less frequently
+                    if current_time - last_stats_log >= stats_log_interval:
+                        self.display_stats()
+                        last_stats_log = current_time
                     
                     last_update = current_time
                 
@@ -221,9 +226,13 @@ class PokerAssistant:
         # Get monitor stats
         monitor_stats = self.history_monitor.get_stats()
         
-        # Log summary (in production, this would update UI)
-        logger.info(f"Database: {db_stats['total_hands']} hands, {db_stats['total_players']} players")
-        logger.info(f"Monitor: {monitor_stats['hands_processed']} processed, {monitor_stats['queue_size']} queued")
+        # Log summary only if there are changes
+        if db_stats['total_hands'] > 0 or monitor_stats['hands_processed'] > 0:
+            logger.info(f"Database: {db_stats['total_hands']} hands, {db_stats['total_players']} players")
+            logger.info(f"Monitor: {monitor_stats['hands_processed']} processed, {monitor_stats['queue_size']} queued")
+        
+        # Note: HUD overlay display not yet implemented
+        # Will require PyQt5/Tkinter for on-screen display
     
     def stop(self):
         """Stop the poker assistant"""
