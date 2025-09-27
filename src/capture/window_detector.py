@@ -47,19 +47,23 @@ class WindowDetector:
         """Get window title patterns for different poker sites"""
         patterns = {
             "betonline": [
-                r"BetOnline",
-                r"BetOnline Poker",
+                # Priority patterns (actual tables)
+                r"Holdem - ",
                 r"Table \d+",
-                r"Holdem - "
+                r"NL Hold'em",
+                r"Omaha",
+                # Fallback patterns (if no table found)
+                r"BetOnline Poker(?!.*Lobby)",  # Exclude lobby
+                r"BetOnline"
             ],
             "pokerstars": [
-                r"PokerStars",
                 r"Table \d+",
-                r"Hold'em"
+                r"Hold'em",
+                r"PokerStars"
             ],
             "ggpoker": [
-                r"GGPoker",
-                r"Table #\d+"
+                r"Table #\d+",
+                r"GGPoker"
             ]
         }
         return patterns.get(self.site, [self.site])
@@ -77,13 +81,14 @@ class WindowDetector:
         """Find window on Windows"""
         try:
             found_windows = []
+            priority_windows = []  # Windows that match table patterns
             
             def enum_callback(hwnd, windows):
                 if win32gui.IsWindowVisible(hwnd):
                     window_title = win32gui.GetWindowText(hwnd)
                     if window_title:
                         # Check if title matches any of our patterns
-                        for pattern in self.window_patterns:
+                        for i, pattern in enumerate(self.window_patterns):
                             if re.search(pattern, window_title, re.IGNORECASE):
                                 rect = win32gui.GetWindowRect(hwnd)
                                 x, y, right, bottom = rect
@@ -92,19 +97,34 @@ class WindowDetector:
                                 
                                 # Only consider reasonably sized windows
                                 if width > 400 and height > 300:
-                                    windows.append(WindowInfo(
+                                    window_info = WindowInfo(
                                         hwnd, window_title, x, y, width, height
-                                    ))
+                                    )
+                                    
+                                    # Prioritize table windows over lobby
+                                    if "Lobby" in window_title:
+                                        windows.append(window_info)
+                                    elif any(table_word in window_title for table_word in ["Table", "Holdem", "Hold'em", "Omaha"]):
+                                        priority_windows.append(window_info)
+                                    else:
+                                        windows.append(window_info)
                                     break
                 return True
             
             win32gui.EnumWindows(enum_callback, found_windows)
             
-            if found_windows:
-                # Return the largest window (likely the main table)
+            # Prefer table windows over lobby windows
+            if priority_windows:
+                # Return the largest table window
+                largest = max(priority_windows, key=lambda w: w.width * w.height)
+                self.current_window = largest
+                logger.info(f"Found poker table window: {largest}")
+                return largest
+            elif found_windows:
+                # Fall back to other windows if no table found
                 largest = max(found_windows, key=lambda w: w.width * w.height)
                 self.current_window = largest
-                logger.info(f"Found poker window: {largest}")
+                logger.info(f"Found poker window (may be lobby): {largest}")
                 return largest
             else:
                 logger.warning(f"No {self.site} window found")

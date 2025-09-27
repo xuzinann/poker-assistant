@@ -8,7 +8,7 @@ from datetime import datetime
 import numpy as np
 from loguru import logger
 
-from capture.screen_capture import ScreenCapture
+from capture.screen_capture import ScreenCapture, CaptureRegion
 from capture.ocr_engine import OCREngine
 from capture.window_detector import WindowDetector
 
@@ -183,11 +183,15 @@ class TableReader:
         if region_name not in self.regions:
             return None
         
-        region = self.regions[region_name]
-        image = self.screen_capture.capture_region(
-            region['x'], region['y'], 
-            region['width'], region['height']
+        region_dict = self.regions[region_name]
+        region = CaptureRegion(
+            x=region_dict['x'],
+            y=region_dict['y'],
+            width=region_dict['width'],
+            height=region_dict['height'],
+            name=region_name
         )
+        image = self.screen_capture.capture_region(region)
         
         if image is not None:
             result = self.ocr.extract_text(image)
@@ -211,10 +215,14 @@ class TableReader:
     
     def _read_player_at_position(self, position: Dict) -> Optional[Dict]:
         """Read player information at specific position"""
-        image = self.screen_capture.capture_region(
-            position['x'], position['y'],
-            position['width'], position['height']
+        region = CaptureRegion(
+            x=position['x'],
+            y=position['y'],
+            width=position['width'],
+            height=position['height'],
+            name="player"
         )
+        image = self.screen_capture.capture_region(region)
         
         if image is None:
             return None
