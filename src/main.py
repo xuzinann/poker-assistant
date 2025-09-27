@@ -109,36 +109,49 @@ class PokerAssistant:
         """Setup automatic table detection"""
         logger.info("Setting up table detection...")
         
-        # For now, use manual configuration
-        # In production, this would use window detection
-        table_config = self.config.get('table', {})
+        # Try to auto-detect poker window first
+        window_bounds = self.table_reader.window_detector.find_poker_window()
         
-        if table_config:
-            x = table_config.get('x', 100)
-            y = table_config.get('y', 100)
-            width = table_config.get('width', 800)
-            height = table_config.get('height', 600)
+        if window_bounds:
+            logger.info(f"Auto-detected poker window: {window_bounds}")
+            # Window detection successful, regions will be set dynamically
+            self.table_reader.update_regions()
             
-            self.screen_capture.setup_poker_site_regions(
-                self.site,
-                (x, y, width, height)
-            )
-            
-            # Setup HUD regions for 6-max table (BetOnline default)
-            # For 6-max, we only need 6 positions
-            positions = {
-                "BTN": (x + width//2, y + 50, 150, 80),
-                "SB": (x + width - 200, y + 150, 150, 80),
-                "BB": (x + width - 200, y + height - 200, 150, 80),
-                "UTG": (x + 50, y + height - 200, 150, 80),
-                "MP": (x + 50, y + 150, 150, 80),
-                "CO": (x + width//2, y + height - 100, 150, 80)
-            }
-            
-            self.hud_extractor.setup_hud_regions(positions)
-            logger.info("Table regions configured")
+            # Setup HUD regions based on window size
+            bounds = self.table_reader.window_detector.get_window_bounds()
+            if bounds:
+                x, y, width, height = bounds
+                
+                # Dynamic HUD positions based on window size
+                positions = {
+                    "BTN": (x + int(width * 0.50), y + int(height * 0.15), int(width * 0.15), int(height * 0.10)),
+                    "SB": (x + int(width * 0.70), y + int(height * 0.30), int(width * 0.15), int(height * 0.10)),
+                    "BB": (x + int(width * 0.70), y + int(height * 0.60), int(width * 0.15), int(height * 0.10)),
+                    "UTG": (x + int(width * 0.15), y + int(height * 0.60), int(width * 0.15), int(height * 0.10)),
+                    "MP": (x + int(width * 0.15), y + int(height * 0.30), int(width * 0.15), int(height * 0.10)),
+                    "CO": (x + int(width * 0.50), y + int(height * 0.75), int(width * 0.15), int(height * 0.10))
+                }
+                
+                self.hud_extractor.setup_hud_regions(positions)
+                logger.info("Table regions configured dynamically")
         else:
-            logger.warning("No table configuration found, using defaults")
+            # Fall back to manual configuration if auto-detection fails
+            logger.warning("Auto-detection failed, trying manual configuration")
+            table_config = self.config.get('table', {})
+            
+            if table_config and not table_config.get('auto_detect', True):
+                x = table_config.get('x', 100)
+                y = table_config.get('y', 100)
+                width = table_config.get('width', 800)
+                height = table_config.get('height', 600)
+                
+                self.screen_capture.setup_poker_site_regions(
+                    self.site,
+                    (x, y, width, height)
+                )
+                logger.info("Using manual table configuration")
+            else:
+                logger.warning("No poker window found and no manual config available")
     
     def setup_hand_history_monitoring(self):
         """Setup hand history directory monitoring"""
@@ -169,8 +182,15 @@ class PokerAssistant:
         # Start hand history monitoring
         self.history_monitor.start()
         
+        # Auto-detect hero name from bottom position or use config
+        hero_name = self.table_reader.detect_hero_name()
+        if not hero_name:
+            hero_name = self.config.get('hero_name', 'Hero')
+            logger.info(f"Using configured hero name: {hero_name}")
+        else:
+            logger.info(f"Auto-detected hero name from bottom position: {hero_name}")
+        
         # Create session
-        hero_name = self.config.get('hero_name', 'Hero')
         self.current_session = self.db.create_session(self.site, hero_name)
         
         logger.info(f"Session started for {hero_name} on {self.site}")
@@ -279,8 +299,10 @@ class PokerAssistant:
     def _store_hand_in_database(self, hand_record: dict):
         """Store captured hand in database"""
         try:
-            # Extract hero name from config or use default
-            hero_name = self.config.get('hero_name', 'Hero')
+            # Auto-detect hero name from bottom position or use config
+            hero_name = self.table_reader.get_hero_name()
+            if hero_name == "Hero":  # Fallback wasn't successful, try config
+                hero_name = self.config.get('hero_name', 'Hero')
             
             # Create player entries for all players in the hand
             for action in hand_record.get('actions', []):

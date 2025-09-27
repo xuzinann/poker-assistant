@@ -2,7 +2,7 @@
 
 # Poker site configuration
 site: betonline  # betonline, pokerstars, ggpoker, partypoker, 888poker
-hero_name: Hero   # Your username
+hero_name: Hero   # Your username (auto-detected from bottom position if not set)
 
 # Database settings
 database:
@@ -26,19 +26,21 @@ capture:
   save_screenshots: false
   screenshot_dir: data/screenshots
 
-# Table detection (manual configuration)
-# Adjust these values to match your poker table window
+# Table detection
 table:
+  # Auto-detection will find your poker window automatically
+  auto_detect: true  # Set to false to use manual positioning
+  
+  # Manual configuration (only used if auto_detect is false)
   x: 100
   y: 100
   width: 800
   height: 600
   
-  # BetOnline specific regions (adjust these to match your table)
-  regions:
-    pot: {x: 400, y: 300, width: 200, height: 50}
-    community: {x: 300, y: 350, width: 400, height: 100}
-    hero_cards: {x: 400, y: 500, width: 150, height: 80}
+  # Window title patterns for auto-detection
+  window_patterns:
+    betonline: ["BetOnline", "BetOnline Poker", "Table"]
+    pokerstars: ["PokerStars", "Hold'em", "Table"]
     
   # Enable screen-based hand capture for BetOnline
   capture_from_screen: true

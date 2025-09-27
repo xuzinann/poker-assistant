@@ -10,6 +10,7 @@ from loguru import logger
 
 from capture.screen_capture import ScreenCapture
 from capture.ocr_engine import OCREngine
+from capture.window_detector import WindowDetector
 
 
 @dataclass
@@ -39,42 +40,117 @@ class TableReader:
         self.ocr = ocr_engine
         self.site = site
         
-        # Table regions - these need to be configured per site
+        # Window detection
+        self.window_detector = WindowDetector(site)
+        self.current_window_bounds = None
+        
+        # Table regions - these will be calculated dynamically
         self.regions = {}
-        self.setup_default_regions()
+        self.seat_positions = {}
         
         # State tracking
         self.previous_state = None
         self.current_hand_id = None
         self.hand_actions = []
         
+        # Hero detection
+        self.hero_name = None
+        self.hero_seat = 4  # Bottom center position for 6-max
+        
         logger.info(f"TableReader initialized for {site}")
     
-    def setup_default_regions(self):
-        """Setup default regions for BetOnline"""
-        if self.site.lower() == "betonline":
-            # These are approximate positions - need adjustment
-            self.regions = {
-                'pot': {'x': 400, 'y': 300, 'width': 200, 'height': 50},
-                'community': {'x': 300, 'y': 350, 'width': 400, 'height': 100},
-                'hero_cards': {'x': 400, 'y': 500, 'width': 150, 'height': 80},
-                'action_buttons': {'x': 500, 'y': 550, 'width': 300, 'height': 100},
-                'chat': {'x': 50, 'y': 450, 'width': 250, 'height': 200},
+    def update_regions(self):
+        """Update regions based on current window size and position"""
+        bounds = self.window_detector.get_window_bounds()
+        if not bounds:
+            logger.warning("No poker window found")
+            return False
+        
+        x, y, width, height = bounds
+        self.current_window_bounds = bounds
+        
+        # Define regions as percentages of window size
+        # These percentages work for most poker table layouts
+        self.regions = {
+            'pot': {
+                'x': x + int(width * 0.40),  # 40% from left
+                'y': y + int(height * 0.35),  # 35% from top
+                'width': int(width * 0.20),   # 20% of width
+                'height': int(height * 0.08)  # 8% of height
+            },
+            'community': {
+                'x': x + int(width * 0.30),
+                'y': y + int(height * 0.40),
+                'width': int(width * 0.40),
+                'height': int(height * 0.12)
+            },
+            'hero_cards': {
+                'x': x + int(width * 0.42),
+                'y': y + int(height * 0.75),
+                'width': int(width * 0.16),
+                'height': int(height * 0.10)
+            },
+            'action_buttons': {
+                'x': x + int(width * 0.55),
+                'y': y + int(height * 0.80),
+                'width': int(width * 0.35),
+                'height': int(height * 0.15)
             }
-            
-            # Player seat positions for 6-max
-            self.seat_positions = {
-                1: {'x': 400, 'y': 150, 'width': 150, 'height': 100},  # Top center
-                2: {'x': 600, 'y': 250, 'width': 150, 'height': 100},  # Right top
-                3: {'x': 600, 'y': 400, 'width': 150, 'height': 100},  # Right bottom
-                4: {'x': 400, 'y': 500, 'width': 150, 'height': 100},  # Bottom center (hero)
-                5: {'x': 200, 'y': 400, 'width': 150, 'height': 100},  # Left bottom
-                6: {'x': 200, 'y': 250, 'width': 150, 'height': 100},  # Left top
+        }
+        
+        # Player seat positions as percentages (for 6-max)
+        # These work for most table layouts
+        self.seat_positions = {
+            1: {  # Top center
+                'x': x + int(width * 0.42),
+                'y': y + int(height * 0.15),
+                'width': int(width * 0.16),
+                'height': int(height * 0.12)
+            },
+            2: {  # Right top
+                'x': x + int(width * 0.70),
+                'y': y + int(height * 0.25),
+                'width': int(width * 0.16),
+                'height': int(height * 0.12)
+            },
+            3: {  # Right bottom
+                'x': x + int(width * 0.70),
+                'y': y + int(height * 0.55),
+                'width': int(width * 0.16),
+                'height': int(height * 0.12)
+            },
+            4: {  # Bottom center (HERO)
+                'x': x + int(width * 0.42),
+                'y': y + int(height * 0.78),
+                'width': int(width * 0.16),
+                'height': int(height * 0.12)
+            },
+            5: {  # Left bottom
+                'x': x + int(width * 0.14),
+                'y': y + int(height * 0.55),
+                'width': int(width * 0.16),
+                'height': int(height * 0.12)
+            },
+            6: {  # Left top
+                'x': x + int(width * 0.14),
+                'y': y + int(height * 0.25),
+                'width': int(width * 0.16),
+                'height': int(height * 0.12)
             }
+        }
+        
+        logger.debug(f"Updated regions for window at ({x},{y}) size ({width}x{height})")
+        return True
     
     def read_table_state(self) -> Optional[TableState]:
         """Read current table state from screen"""
         try:
+            # Update regions if window has moved or resized
+            self.window_detector.update_window_position()
+            if not self.regions or self.window_detector.get_window_bounds() != self.current_window_bounds:
+                if not self.update_regions():
+                    return None
+            
             state = TableState()
             
             # Read pot size
@@ -224,6 +300,35 @@ class TableReader:
         }
         return position_map.get(seat_num, f"SEAT{seat_num}")
     
+    def detect_hero_name(self) -> Optional[str]:
+        """Auto-detect hero name from bottom center position"""
+        try:
+            # Read player at hero seat (bottom center - seat 4)
+            hero_position = self.seat_positions.get(self.hero_seat)
+            if not hero_position:
+                logger.warning("Hero seat position not configured")
+                return None
+            
+            player_info = self._read_player_at_position(hero_position)
+            
+            if player_info and player_info.get('name'):
+                self.hero_name = player_info['name']
+                logger.info(f"Auto-detected hero name: {self.hero_name}")
+                return self.hero_name
+            else:
+                logger.debug("Could not detect hero name from bottom position")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Failed to detect hero name: {e}")
+            return None
+    
+    def get_hero_name(self) -> str:
+        """Get hero name, auto-detecting if necessary"""
+        if not self.hero_name:
+            self.detect_hero_name()
+        return self.hero_name or "Hero"
+    
     def detect_new_hand(self, current_state: TableState) -> bool:
         """Detect if a new hand has started"""
         if self.previous_state is None:
@@ -273,6 +378,7 @@ class TableReader:
             'hand_id': datetime.now().strftime('%Y%m%d_%H%M%S'),
             'site': self.site,
             'timestamp': datetime.now(),
+            'hero_name': self.get_hero_name(),
             'actions': self.hand_actions,
             'hero_cards': self.previous_state.hero_cards if self.previous_state else [],
             'community_cards': self.previous_state.community_cards if self.previous_state else [],
