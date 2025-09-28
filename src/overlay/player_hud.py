@@ -46,6 +46,11 @@ class PlayerHUD:
         self.window.attributes('-alpha', 0.9)
         self.window.overrideredirect(True)  # Remove title bar
         
+        # Make window draggable even with overrideredirect
+        self.window.bind('<Button-1>', self.start_drag)
+        self.window.bind('<B1-Motion>', self.drag)
+        self.window.bind('<ButtonRelease-1>', self.stop_drag)
+        
         # Set initial position
         self.window.geometry(f"+{self.x}+{self.y}")
         

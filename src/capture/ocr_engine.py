@@ -217,14 +217,43 @@ class OCREngine:
     
     def extract_player_name(self, image: np.ndarray) -> Optional[str]:
         """Extract player username from image"""
-        # Use less restrictive preprocessing for names
-        processed = self.preprocess_image(image, ["grayscale", "denoise"])
+        # Try multiple preprocessing methods for better detection
+        methods = [
+            ["grayscale", "threshold"],  # High contrast
+            ["grayscale", "denoise"],    # Clean image
+            ["grayscale"],                # Simple grayscale
+            []                            # Original image
+        ]
         
-        result = self.extract_text(processed, preprocess=False,
-                                  custom_config="--psm 8")
+        best_result = None
+        best_confidence = 0
         
-        if result.confidence < 0.5:
+        for method in methods:
+            if method:
+                processed = self.preprocess_image(image, method)
+            else:
+                processed = image
+                
+            # Try different OCR modes
+            for psm in [8, 7, 11]:  # Single line, text line, sparse text
+                config = f"--psm {psm} -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-"
+                result = self.extract_text(processed, preprocess=False, custom_config=config)
+                
+                if result and result.confidence > best_confidence:
+                    best_result = result
+                    best_confidence = result.confidence
+                    
+                # If we get high confidence, stop trying
+                if best_confidence > 0.8:
+                    break
+            
+            if best_confidence > 0.8:
+                break
+        
+        if not best_result or best_result.confidence < 0.3:  # Lower threshold
             return None
+        
+        result = best_result
         
         # Clean up common OCR errors in usernames
         text = result.text.strip()

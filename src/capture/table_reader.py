@@ -98,44 +98,44 @@ class TableReader:
             }
         }
         
-        # Player seat positions as percentages (for 6-max)
-        # These work for most table layouts
+        # Player seat positions for BetOnline (adjusted for actual layout)
+        # BetOnline has player info boxes with name and stack
         self.seat_positions = {
             1: {  # Top center
-                'x': x + int(width * 0.42),
-                'y': y + int(height * 0.15),
-                'width': int(width * 0.16),
-                'height': int(height * 0.12)
+                'x': x + int(width * 0.45),  # More centered
+                'y': y + int(height * 0.08),  # Higher up
+                'width': int(width * 0.10),   # Narrower for name/stack box
+                'height': int(height * 0.08)  # Smaller height
             },
             2: {  # Right top
-                'x': x + int(width * 0.70),
-                'y': y + int(height * 0.25),
-                'width': int(width * 0.16),
-                'height': int(height * 0.12)
+                'x': x + int(width * 0.75),   # Further right
+                'y': y + int(height * 0.20),  
+                'width': int(width * 0.10),
+                'height': int(height * 0.08)
             },
             3: {  # Right bottom
-                'x': x + int(width * 0.70),
-                'y': y + int(height * 0.55),
-                'width': int(width * 0.16),
-                'height': int(height * 0.12)
+                'x': x + int(width * 0.75),
+                'y': y + int(height * 0.50),
+                'width': int(width * 0.10),
+                'height': int(height * 0.08)
             },
-            4: {  # Bottom center (HERO)
-                'x': x + int(width * 0.42),
-                'y': y + int(height * 0.78),
-                'width': int(width * 0.16),
-                'height': int(height * 0.12)
+            4: {  # Bottom center (HERO) - Your position
+                'x': x + int(width * 0.45),
+                'y': y + int(height * 0.70),  # Adjusted for actual hero position
+                'width': int(width * 0.10),
+                'height': int(height * 0.08)
             },
             5: {  # Left bottom
-                'x': x + int(width * 0.14),
-                'y': y + int(height * 0.55),
-                'width': int(width * 0.16),
-                'height': int(height * 0.12)
+                'x': x + int(width * 0.10),   # Further left
+                'y': y + int(height * 0.50),
+                'width': int(width * 0.10),
+                'height': int(height * 0.08)
             },
             6: {  # Left top
-                'x': x + int(width * 0.14),
-                'y': y + int(height * 0.25),
-                'width': int(width * 0.16),
-                'height': int(height * 0.12)
+                'x': x + int(width * 0.10),
+                'y': y + int(height * 0.20),
+                'width': int(width * 0.10),
+                'height': int(height * 0.08)
             }
         }
         
@@ -246,16 +246,30 @@ class TableReader:
             logger.debug(f"No image captured at position {position}")
             return None
         
+        # Save screenshot for debugging
+        if self.site == "betonline":
+            import cv2
+            import numpy as np
+            from pathlib import Path
+            debug_dir = Path("debug_screenshots")
+            debug_dir.mkdir(exist_ok=True)
+            
+            # Save the captured region
+            seat_name = f"seat_{position.get('x', 0)}_{position.get('y', 0)}"
+            cv2.imwrite(str(debug_dir / f"{seat_name}.png"), 
+                       cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
+            logger.debug(f"Saved screenshot to debug_screenshots/{seat_name}.png")
+        
         text = self.ocr.extract_text(image)
         if not text:
             logger.debug(f"No text extracted from position {position}")
             return None
         
         if text.confidence < 0.5:
-            logger.debug(f"Low confidence OCR at position: {text.text} (conf: {text.confidence})")
+            logger.debug(f"Low confidence OCR at position: '{text.text}' (conf: {text.confidence:.2f})")
             return None
         
-        logger.debug(f"OCR extracted: '{text.text}' with confidence {text.confidence}")
+        logger.debug(f"OCR extracted: '{text.text}' with confidence {text.confidence:.2f}")
         
         # Parse player info from text
         lines = text.text.strip().split('\n')
