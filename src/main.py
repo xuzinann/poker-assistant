@@ -23,6 +23,7 @@ from capture.ocr_engine import OCREngine
 from capture.table_reader import TableReader
 from hud.hud_extractor import HUDExtractor
 from history.history_monitor import HandHistoryMonitor
+from overlay.hud_overlay import HUDOverlay, PlayerDisplay
 from config.settings import Settings
 
 
@@ -59,8 +60,12 @@ class PokerAssistant:
         # Hand history monitor
         self.history_monitor = HandHistoryMonitor(self.db)
         
+        # HUD Overlay
+        self.hud_overlay = HUDOverlay()
+        
         # Session tracking
         self.current_session = None
+        self.is_in_lobby = False
         
         # Running state
         self.is_running = False
@@ -169,6 +174,127 @@ class PokerAssistant:
             if path:
                 self.history_monitor.add_directory(path, site)
     
+    def update_overlay_display(self, table_state):
+        """Update the overlay with current player information"""
+        try:
+            players_display = {}
+            seat_positions = {}
+            
+            # Get window bounds for positioning
+            window_bounds = self.table_reader.window_detector.get_window_bounds()
+            if not window_bounds:
+                return
+            
+            x_base, y_base, width, height = window_bounds
+            
+            # Update overlay window position
+            self.hud_overlay.set_window_position(x_base, y_base, width, height)
+            
+            # Process each player
+            for position, player_info in table_state.players.items():
+                player_name = player_info.get('name')
+                if not player_name:
+                    continue
+                
+                # Get player stats from database
+                player_stats = self.db.get_player_stats(player_name, self.site)
+                
+                # Categorize player
+                category, color = self.categorize_player(player_stats)
+                
+                # Get position on screen
+                seat_num = self._position_to_seat(position)
+                if seat_num and seat_num in self.table_reader.seat_positions:
+                    seat_pos = self.table_reader.seat_positions[seat_num]
+                    seat_positions[position] = (seat_pos['x'] - x_base, seat_pos['y'] - y_base)
+                
+                # Create display info
+                display = PlayerDisplay(
+                    name=player_name,
+                    position=position,
+                    vpip=player_stats.get('vpip', 0) if player_stats else 0,
+                    pfr=player_stats.get('pfr', 0) if player_stats else 0,
+                    hands=player_stats.get('hands_played', 0) if player_stats else 0,
+                    category=category,
+                    color=color
+                )
+                
+                # Add suggestions for playing against this player type
+                if category == "FISH":
+                    display.suggestion = "Value bet wide"
+                elif category == "NIT":
+                    display.suggestion = "Steal blinds"
+                elif category == "LAG":
+                    display.suggestion = "Trap with strong hands"
+                
+                players_display[position] = display
+            
+            # Update overlay
+            self.hud_overlay.update_players(players_display, seat_positions)
+            
+            # Show hand strength suggestion if we have hero cards
+            if table_state.hero_cards and len(table_state.hero_cards) == 2:
+                suggestion = self.get_hand_suggestion(table_state)
+                if suggestion:
+                    self.hud_overlay.show_suggestion(suggestion)
+            
+        except Exception as e:
+            logger.error(f"Failed to update overlay: {e}")
+    
+    def categorize_player(self, stats):
+        """Categorize player based on stats"""
+        if not stats or stats.get('hands_played', 0) < 20:
+            return "Unknown", "#FFFFFF"
+        
+        vpip = stats.get('vpip', 0)
+        pfr = stats.get('pfr', 0)
+        three_bet = stats.get('three_bet', 0)
+        
+        # Categorize based on stats
+        if vpip < 15:
+            return "NIT", "#FF0000"  # Red - very tight
+        elif vpip > 35 and pfr < 15:
+            return "FISH", "#0000FF"  # Blue - loose passive
+        elif vpip > 30 and pfr > 20:
+            return "LAG", "#FFA500"  # Orange - loose aggressive
+        elif vpip < 22 and pfr > 15:
+            return "TAG", "#00FF00"  # Green - tight aggressive
+        else:
+            return "REG", "#FFFFFF"  # White - regular
+    
+    def get_hand_suggestion(self, table_state):
+        """Get suggestion based on hand strength"""
+        cards = table_state.hero_cards
+        if not cards or len(cards) != 2:
+            return None
+        
+        # Simple hand strength evaluation
+        card1 = cards[0][:1] if cards[0] else ""
+        card2 = cards[1][:1] if cards[1] else ""
+        
+        # Premium hands
+        if card1 == 'A' and card2 == 'A':
+            return "Premium hand! Raise/Re-raise"
+        elif (card1 == 'K' and card2 == 'K') or (card1 == 'Q' and card2 == 'Q'):
+            return "Strong hand! Raise for value"
+        elif card1 == 'A' and card2 == 'K':
+            return "AK - Premium! 3-bet/4-bet"
+        
+        # Check for suited
+        suited = len(cards[0]) > 1 and len(cards[1]) > 1 and cards[0][-1] == cards[1][-1]
+        if suited and ((card1 == 'A') or (card2 == 'A')):
+            return "Suited Ace - Good for 3-bet bluffs"
+        
+        return None
+    
+    def _position_to_seat(self, position):
+        """Convert position name to seat number"""
+        position_map = {
+            "BTN": 1, "SB": 2, "BB": 3,
+            "UTG": 4, "MP": 5, "CO": 6
+        }
+        return position_map.get(position)
+    
     def start(self):
         """Start the poker assistant"""
         logger.info("Starting Poker Assistant...")
@@ -178,6 +304,9 @@ class PokerAssistant:
         # Setup components
         self.setup_table_detection()
         self.setup_hand_history_monitoring()
+        
+        # Start HUD overlay
+        self.hud_overlay.start()
         
         # Start hand history monitoring
         self.history_monitor.start()
@@ -210,32 +339,46 @@ class PokerAssistant:
                 current_time = time.time()
                 
                 if current_time - last_update >= update_interval:
-                    # Read table state from screen
-                    table_state = self.table_reader.read_table_state()
-                    
-                    if table_state:
-                        # Check for new hand
-                        if self.table_reader.detect_new_hand(table_state):
-                            # Save previous hand if exists
-                            self.save_captured_hand()
-                            # Start tracking new hand
-                            self.table_reader.reset_hand_tracking()
-                            logger.info(f"New hand detected - Hero cards: {table_state.hero_cards}, Community: {table_state.community_cards}")
+                    # Check if we're in lobby
+                    window_info = self.table_reader.window_detector.current_window
+                    if window_info and "Lobby" in window_info.title:
+                        if not self.is_in_lobby:
+                            logger.info("In lobby - pausing table processing")
+                            self.is_in_lobby = True
+                            self.hud_overlay.clear()
+                    else:
+                        self.is_in_lobby = False
                         
-                        # Track actions
-                        self.table_reader.track_action(table_state)
+                        # Read table state from screen (only if not in lobby)
+                        table_state = self.table_reader.read_table_state()
                         
-                        # Log current state periodically
-                        if hasattr(self, '_last_state_log'):
-                            if current_time - self._last_state_log > 10:  # Log every 10 seconds
-                                if table_state.players:
-                                    logger.debug(f"Players detected: {list(table_state.players.keys())}")
+                        if table_state:
+                            # Check for new hand
+                            if self.table_reader.detect_new_hand(table_state):
+                                # Save previous hand if exists
+                                self.save_captured_hand()
+                                # Start tracking new hand
+                                self.table_reader.reset_hand_tracking()
+                                logger.info(f"New hand detected - Hero cards: {table_state.hero_cards}, Community: {table_state.community_cards}")
+                            
+                            # Track actions
+                            self.table_reader.track_action(table_state)
+                            
+                            # Update overlay with player info
+                            self.update_overlay_display(table_state)
+                            
+                            # Log current state periodically
+                            if hasattr(self, '_last_state_log'):
+                                if current_time - self._last_state_log > 10:  # Log every 10 seconds
+                                    if table_state.players:
+                                        logger.debug(f"Players detected: {list(table_state.players.keys())}")
+                                    self._last_state_log = current_time
+                            else:
                                 self._last_state_log = current_time
-                        else:
-                            self._last_state_log = current_time
-                    
-                    # Extract HUD stats
-                    self.update_hud_stats()
+                        
+                        # Extract HUD stats (only if not in lobby)
+                        if not self.is_in_lobby:
+                            self.update_hud_stats()
                     
                     # Update display less frequently
                     if current_time - last_stats_log >= stats_log_interval:
@@ -357,6 +500,9 @@ class PokerAssistant:
         logger.info("Stopping Poker Assistant...")
         
         self.is_running = False
+        
+        # Stop overlay
+        self.hud_overlay.stop()
         
         # Stop hand history monitoring
         self.history_monitor.stop()
