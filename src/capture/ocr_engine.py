@@ -228,10 +228,33 @@ class OCREngine:
         
         # Clean up common OCR errors in usernames
         text = result.text.strip()
+        # Remove non-alphanumeric characters except underscore and dash
         text = re.sub(r'[^A-Za-z0-9_\-]', '', text)
         
-        if len(text) >= 3:  # Minimum username length
-            return text
+        # Validate username (must be reasonable)
+        if len(text) >= 3 and len(text) <= 20:  # Reasonable username length
+            # Check if it's likely a real username (not random OCR garbage)
+            # Must have at least one letter or number
+            if re.search(r'[A-Za-z0-9]', text):
+                # Avoid common OCR misreads that look like system text
+                garbage_patterns = [
+                    r'^Error',
+                    r'^INFO',
+                    r'^DEBUG',
+                    r'window',
+                    r'poker',
+                    r'Found',
+                    r'updated',
+                    r'session',
+                    r'detected'
+                ]
+                
+                for pattern in garbage_patterns:
+                    if re.search(pattern, text, re.IGNORECASE):
+                        logger.debug(f"Rejected garbage username: {text}")
+                        return None
+                
+                return text
         
         return None
     

@@ -220,10 +220,19 @@ class PokerAssistant:
                             self.save_captured_hand()
                             # Start tracking new hand
                             self.table_reader.reset_hand_tracking()
-                            logger.info("New hand detected from screen")
+                            logger.info(f"New hand detected - Hero cards: {table_state.hero_cards}, Community: {table_state.community_cards}")
                         
                         # Track actions
                         self.table_reader.track_action(table_state)
+                        
+                        # Log current state periodically
+                        if hasattr(self, '_last_state_log'):
+                            if current_time - self._last_state_log > 10:  # Log every 10 seconds
+                                if table_state.players:
+                                    logger.debug(f"Players detected: {list(table_state.players.keys())}")
+                                self._last_state_log = current_time
+                        else:
+                            self._last_state_log = current_time
                     
                     # Extract HUD stats
                     self.update_hud_stats()
@@ -266,32 +275,43 @@ class PokerAssistant:
         hand_record = self.table_reader.create_hand_record()
         
         if not hand_record:
+            logger.debug("No hand data to save")
             return
         
         try:
-            # Create local hand history directory if it doesn't exist
-            hand_history_dir = Path.home() / "Documents" / "BetOnline" / "HandHistory"
-            hand_history_dir.mkdir(parents=True, exist_ok=True)
+            # Log hand summary
+            num_actions = len(hand_record.get('actions', []))
+            hero_cards = hand_record.get('hero_cards', [])
+            pot_size = hand_record.get('pot_size', 0)
             
-            # Save to file
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            filename = hand_history_dir / f"hand_{timestamp}.json"
-            
-            import json
-            with open(filename, 'w') as f:
-                # Convert datetime objects to strings for JSON serialization
-                hand_data = hand_record.copy()
-                hand_data['timestamp'] = hand_data['timestamp'].isoformat()
-                for action in hand_data.get('actions', []):
-                    if 'timestamp' in action:
-                        action['timestamp'] = action['timestamp'].isoformat()
+            if num_actions > 0:
+                logger.info(f"Saving hand with {num_actions} actions, pot: ${pot_size:.2f}, hero cards: {hero_cards}")
                 
-                json.dump(hand_data, f, indent=2)
-            
-            logger.info(f"Saved captured hand to {filename}")
-            
-            # Also store in database
-            self._store_hand_in_database(hand_record)
+                # Create local hand history directory if it doesn't exist
+                hand_history_dir = Path.home() / "Documents" / "BetOnline" / "HandHistory"
+                hand_history_dir.mkdir(parents=True, exist_ok=True)
+                
+                # Save to file
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                filename = hand_history_dir / f"hand_{timestamp}.json"
+                
+                import json
+                with open(filename, 'w') as f:
+                    # Convert datetime objects to strings for JSON serialization
+                    hand_data = hand_record.copy()
+                    hand_data['timestamp'] = hand_data['timestamp'].isoformat()
+                    for action in hand_data.get('actions', []):
+                        if 'timestamp' in action:
+                            action['timestamp'] = action['timestamp'].isoformat()
+                    
+                    json.dump(hand_data, f, indent=2)
+                
+                logger.info(f"Hand saved to {filename}")
+                
+                # Also store in database
+                self._store_hand_in_database(hand_record)
+            else:
+                logger.debug("Hand had no actions, skipping save")
             
         except Exception as e:
             logger.error(f"Failed to save captured hand: {e}")

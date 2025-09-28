@@ -145,9 +145,16 @@ class TableReader:
     def read_table_state(self) -> Optional[TableState]:
         """Read current table state from screen"""
         try:
+            # Check if window is still active
+            if not self.window_detector.is_window_active():
+                # Try to find a new window
+                logger.debug("Window closed, searching for new window...")
+                new_window = self.window_detector.find_poker_window()
+                if not new_window:
+                    return None
+                    
             # Update regions if window has moved or resized
-            self.window_detector.update_window_position()
-            if not self.regions or self.window_detector.get_window_bounds() != self.current_window_bounds:
+            if self.window_detector.update_window_position() or not self.regions:
                 if not self.update_regions():
                     return None
             
@@ -359,6 +366,9 @@ class TableReader:
             self.previous_state = current_state
             return
         
+        # Track any significant state changes
+        changes_detected = False
+        
         # Check for player action changes
         for position, player_info in current_state.players.items():
             prev_player = self.previous_state.players.get(position, {})
@@ -373,7 +383,21 @@ class TableReader:
                     'pot': current_state.pot_size
                 }
                 self.hand_actions.append(action)
-                logger.debug(f"Action tracked: {action}")
+                logger.debug(f"Action tracked: {player_info.get('name')} - {player_info.get('last_action')}")
+                changes_detected = True
+        
+        # Track street changes
+        if current_state.current_street != self.previous_state.current_street:
+            logger.debug(f"Street changed: {self.previous_state.current_street} -> {current_state.current_street}")
+            changes_detected = True
+        
+        # Track pot changes
+        if abs(current_state.pot_size - self.previous_state.pot_size) > 0.01:
+            logger.debug(f"Pot changed: ${self.previous_state.pot_size} -> ${current_state.pot_size}")
+            changes_detected = True
+        
+        if changes_detected:
+            logger.debug(f"Hand #{self.current_hand_id}: {len(self.hand_actions)} actions tracked")
         
         self.previous_state = current_state
     
