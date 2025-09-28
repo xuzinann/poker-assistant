@@ -13,8 +13,8 @@ database:
 
 # OCR settings for text extraction
 ocr:
-  engine: pytesseract  # pytesseract or easyocr
-  confidence_threshold: 0.85
+  engine: easyocr  # Try easyocr first (better for game text)
+  confidence_threshold: 0.30  # Lower threshold for testing
   preprocessing:
     - grayscale
     - threshold

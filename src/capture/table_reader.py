@@ -11,6 +11,10 @@ from loguru import logger
 from capture.screen_capture import ScreenCapture, CaptureRegion
 from capture.ocr_engine import OCREngine
 from capture.window_detector import WindowDetector
+from detection.yolo_detector import YOLODetector, FallbackDetector
+from detection.paddle_reader import PaddleReader
+from detection.card_classifier import CardClassifier
+from detection.hand_fsm import HandStateMachine
 
 
 @dataclass
@@ -44,6 +48,17 @@ class TableReader:
         self.window_detector = WindowDetector(site)
         self.current_window_bounds = None
         
+        # Initialize new detection components
+        try:
+            self.yolo_detector = YOLODetector()
+        except:
+            logger.warning("YOLO not available, using fallback detector")
+            self.yolo_detector = FallbackDetector()
+            
+        self.paddle_reader = PaddleReader()
+        self.card_classifier = CardClassifier()
+        self.hand_fsm = HandStateMachine()
+        
         # Table regions - these will be calculated dynamically
         self.regions = {}
         self.seat_positions = {}
@@ -57,7 +72,7 @@ class TableReader:
         self.hero_name = None
         self.hero_seat = 4  # Bottom center position for 6-max
         
-        logger.info(f"TableReader initialized for {site}")
+        logger.info(f"TableReader initialized for {site} with new detection pipeline")
     
     def update_regions(self):
         """Update regions based on current window size and position"""
@@ -158,12 +173,33 @@ class TableReader:
                 if not self.update_regions():
                     return None
             
+            # Save full table screenshot for debugging (once per session)
+            if not hasattr(self, '_saved_full_table'):
+                self._save_full_table_screenshot()
+                self._saved_full_table = True
+            
             state = TableState()
             
-            # Read pot size
-            pot_text = self._read_region('pot')
-            if pot_text:
-                state.pot_size = self._extract_money(pot_text)
+            # Capture full table for YOLO detection
+            x, y, width, height = self.current_window_bounds
+            region = CaptureRegion(x=x, y=y, width=width, height=height, name="full_table")
+            full_image = self.screen_capture.capture_region(region)
+            
+            if full_image is None:
+                return None
+            
+            # Read pot size using YOLO + PaddleOCR
+            pot_detection = self.yolo_detector.detect_pot(full_image)
+            if pot_detection and pot_detection.image_crop is not None:
+                pot_amount = self.paddle_reader.read_money_amount(pot_detection.image_crop)
+                if pot_amount:
+                    state.pot_size = pot_amount
+                    logger.debug(f"Detected pot: ${pot_amount}")
+            else:
+                # Fallback to old method
+                pot_text = self._read_region('pot')
+                if pot_text:
+                    state.pot_size = self._extract_money(pot_text)
             
             # Read community cards
             community_text = self._read_region('community')
@@ -178,6 +214,21 @@ class TableReader:
             
             # Read player information
             state.players = self._read_all_players()
+            
+            # Update FSM with observation
+            observation = {
+                'players': list(state.players.values()),
+                'hero_cards': state.hero_cards,
+                'community_cards': state.community_cards,
+                'pot_size': state.pot_size,
+                'actions': self.hand_actions
+            }
+            
+            completed_hand = self.hand_fsm.update(observation)
+            if completed_hand:
+                logger.info(f"Hand completed: {completed_hand.hand_id}")
+                # Reset tracking for new hand
+                self.reset_hand_tracking()
             
             # Debug logging
             if state.players:
@@ -212,6 +263,10 @@ class TableReader:
         image = self.screen_capture.capture_region(region)
         
         if image is not None:
+            # Store image for card extraction if needed
+            if region_name == 'community' or region_name == 'hero_cards':
+                self._last_cards_image = image
+            
             result = self.ocr.extract_text(image)
             if result and result.confidence > 0.5:
                 return result.text
@@ -219,17 +274,91 @@ class TableReader:
         return None
     
     def _read_all_players(self) -> Dict[str, Dict]:
-        """Read information for all players"""
+        """Read information for all players using new detection"""
         players = {}
         
-        for seat_num, position in self.seat_positions.items():
-            player_info = self._read_player_at_position(position)
-            if player_info and player_info.get('name'):
-                # Map seat number to position name
-                pos_name = self._seat_to_position(seat_num)
-                players[pos_name] = player_info
+        # Capture full table
+        if not self.current_window_bounds:
+            return players
+            
+        x, y, width, height = self.current_window_bounds
+        region = CaptureRegion(x=x, y=y, width=width, height=height, name="full_table")
+        full_image = self.screen_capture.capture_region(region)
+        
+        if full_image is None:
+            return players
+        
+        # Use YOLO to detect player boxes
+        player_detections = self.yolo_detector.detect_players(full_image)
+        
+        if not player_detections:
+            # Fallback to old method
+            logger.debug("No YOLO detections, using traditional method")
+            for seat_num, position in self.seat_positions.items():
+                player_info = self._read_player_at_position(position)
+                if player_info and player_info.get('name'):
+                    pos_name = self._seat_to_position(seat_num)
+                    players[pos_name] = player_info
+        else:
+            # Process YOLO detections
+            logger.debug(f"YOLO detected {len(player_detections)} player boxes")
+            for i, detection in enumerate(player_detections):
+                # Extract player info from detected region
+                player_image = detection.image_crop
+                if player_image is not None:
+                    # Use PaddleOCR to read player info
+                    name = self.paddle_reader.read_player_name(player_image)
+                    stack = self.paddle_reader.read_stack_size(player_image)
+                    
+                    if name:
+                        player_info = {'name': name}
+                        if stack:
+                            player_info['stack'] = stack
+                        
+                        # Determine position based on location
+                        x1, y1, x2, y2 = detection.bbox
+                        seat_num = self._bbox_to_seat_number(x1, y1, x2, y2, width, height)
+                        pos_name = self._seat_to_position(seat_num)
+                        players[pos_name] = player_info
+                        
+                        logger.debug(f"Detected player {name} at {pos_name} with stack ${stack}")
         
         return players
+    
+    def _bbox_to_seat_number(self, x1: int, y1: int, x2: int, y2: int, 
+                            table_width: int, table_height: int) -> int:
+        """
+        Convert bounding box position to seat number
+        
+        Args:
+            x1, y1, x2, y2: Bounding box coordinates
+            table_width, table_height: Table dimensions
+            
+        Returns:
+            Seat number (1-6)
+        """
+        # Calculate center of bbox relative to table
+        cx = (x1 + x2) / 2
+        cy = (y1 + y2) / 2
+        
+        rel_x = cx / table_width
+        rel_y = cy / table_height
+        
+        # Map to seat based on position
+        if rel_y < 0.25:  # Top row
+            if rel_x < 0.33:
+                return 6  # Top left
+            elif rel_x > 0.66:
+                return 2  # Top right
+            else:
+                return 1  # Top center
+        elif rel_y > 0.65:  # Bottom row
+            return 4  # Hero position
+        else:  # Middle row
+            if rel_x < 0.33:
+                return 5  # Left
+            else:
+                return 3  # Right
     
     def _read_player_at_position(self, position: Dict) -> Optional[Dict]:
         """Read player information at specific position"""
@@ -305,15 +434,21 @@ class TableReader:
         return 0.0
     
     def _extract_cards(self, text: str) -> List[str]:
-        """Extract card values from text"""
-        cards = []
+        """Extract card values using card classifier"""
+        # First try new card classifier if we have an image
+        if hasattr(self, '_last_cards_image') and self._last_cards_image is not None:
+            detected_cards = self.card_classifier.detect_cards_in_region(self._last_cards_image)
+            if detected_cards:
+                cards = [str(card) for card, _ in detected_cards]
+                logger.debug(f"Card classifier detected: {cards}")
+                return cards
         
-        # Card patterns: Ah, KS, 10c, etc.
+        # Fallback to text extraction
+        cards = []
         pattern = r'([AKQJT2-9]|10)([hsdc])'
         matches = re.findall(pattern, text, re.IGNORECASE)
         
         for rank, suit in matches:
-            # Normalize suit
             suit_map = {'h': '♥', 's': '♠', 'd': '♦', 'c': '♣'}
             suit_lower = suit.lower()
             if suit_lower in suit_map:
@@ -457,3 +592,47 @@ class TableReader:
         self.hand_actions = []
         self.current_hand_id = datetime.now().strftime('%Y%m%d_%H%M%S')
         logger.debug(f"Started tracking new hand: {self.current_hand_id}")
+    
+    def _save_full_table_screenshot(self):
+        """Save a full table screenshot for debugging"""
+        try:
+            import cv2
+            from pathlib import Path
+            
+            bounds = self.window_detector.get_window_bounds()
+            if not bounds:
+                return
+                
+            x, y, width, height = bounds
+            
+            # Capture full window
+            region = CaptureRegion(x=x, y=y, width=width, height=height, name="full_table")
+            image = self.screen_capture.capture_region(region)
+            
+            if image is not None:
+                debug_dir = Path("debug_screenshots")
+                debug_dir.mkdir(exist_ok=True)
+                
+                # Save full table
+                cv2.imwrite(str(debug_dir / "full_table.png"), 
+                           cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
+                logger.info(f"Saved full table screenshot to debug_screenshots/full_table.png")
+                
+                # Also draw rectangles showing where we're looking for players
+                overlay = image.copy()
+                for seat_num, pos in self.seat_positions.items():
+                    # Draw rectangle on overlay
+                    cv2.rectangle(overlay,
+                                (pos['x'] - x, pos['y'] - y),
+                                (pos['x'] - x + pos['width'], pos['y'] - y + pos['height']),
+                                (0, 255, 0), 2)
+                    cv2.putText(overlay, f"Seat {seat_num}",
+                              (pos['x'] - x, pos['y'] - y - 5),
+                              cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+                
+                cv2.imwrite(str(debug_dir / "full_table_regions.png"), 
+                           cv2.cvtColor(overlay, cv2.COLOR_RGB2BGR))
+                logger.info("Saved table with region overlay to debug_screenshots/full_table_regions.png")
+                
+        except Exception as e:
+            logger.error(f"Failed to save full table screenshot: {e}")

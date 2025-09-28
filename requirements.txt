@@ -1,9 +1,16 @@
 # Core dependencies
 mss>=9.0.1           # Screen capture
 Pillow>=10.0.0       # Image processing
-pytesseract>=0.3.10  # OCR processing
-easyocr>=1.7.0       # Alternative OCR
+pytesseract>=0.3.10  # OCR processing (keeping for fallback)
+easyocr>=1.7.0       # Alternative OCR (keeping for fallback)
 opencv-python>=4.8.0 # Image preprocessing
+
+# Computer Vision & Detection
+ultralytics>=8.0.0   # YOLO for object detection
+paddlepaddle>=2.5.0  # PaddleOCR backend
+paddleocr>=2.7.0     # Better OCR for game graphics
+torch>=2.0.0         # Deep learning framework
+torchvision>=0.15.0  # Computer vision models
 
 # Database
 sqlalchemy>=2.0.0    # ORM
