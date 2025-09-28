@@ -292,6 +292,26 @@ class PokerAssistant:
         }
         return position_map.get(position)
     
+    def _create_test_hud(self):
+        """Create a test HUD to verify the system is working"""
+        try:
+            logger.info("Creating test HUD window...")
+            test_stats = PlayerStats(
+                name="TestPlayer",
+                vpip=25.5,
+                pfr=18.2,
+                hands=150,
+                category="TAG",
+                color="#00FF00"
+            )
+            # Create a test HUD in the center of the screen
+            self.hud_manager.create_or_update_hud(
+                "TEST", "TestPlayer", test_stats, 500, 300
+            )
+            logger.info("Test HUD created - you should see a green HUD window")
+        except Exception as e:
+            logger.error(f"Failed to create test HUD: {e}")
+    
     def start(self):
         """Start the poker assistant"""
         logger.info("Starting Poker Assistant...")
@@ -304,6 +324,11 @@ class PokerAssistant:
         
         # Start HUD manager
         self.hud_manager.start()
+        logger.info("HUD Manager started - ready to display player stats")
+        
+        # Create a test HUD to verify system is working
+        if self.config.get('test_hud', False):
+            self._create_test_hud()
         
         # Start hand history monitoring
         self.history_monitor.start()
@@ -534,8 +559,8 @@ def main():
     
     args = parser.parse_args()
     
-    # Setup logging
-    log_level = "DEBUG" if args.debug else "INFO"
+    # Setup logging - DEBUG by default to diagnose issues
+    log_level = "DEBUG"  # Always DEBUG for troubleshooting
     logger.remove()
     logger.add(sys.stderr, level=log_level, format="{time:HH:mm:ss} | {level} | {message}")
     logger.add("logs/poker_assistant_{time}.log", rotation="1 day", retention="7 days", level="DEBUG")

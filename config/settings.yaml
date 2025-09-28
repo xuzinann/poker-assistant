@@ -3,6 +3,7 @@
 # Poker site configuration
 site: betonline  # betonline, pokerstars, ggpoker, partypoker, 888poker
 hero_name: Hero   # Your username (auto-detected from bottom position if not set)
+test_hud: true    # Show a test HUD window to verify system is working
 
 # Database settings
 database:

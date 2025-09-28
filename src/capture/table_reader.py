@@ -179,6 +179,17 @@ class TableReader:
             # Read player information
             state.players = self._read_all_players()
             
+            # Debug logging
+            if state.players:
+                logger.debug(f"Found {len(state.players)} players at table")
+                for pos, player in state.players.items():
+                    logger.debug(f"  {pos}: {player.get('name', 'Unknown')} - Stack: ${player.get('stack', 0)}")
+            else:
+                logger.debug("No players detected at table")
+            
+            if state.hero_cards:
+                logger.debug(f"Hero cards detected: {state.hero_cards}")
+            
             return state
             
         except Exception as e:
@@ -232,11 +243,19 @@ class TableReader:
         image = self.screen_capture.capture_region(region)
         
         if image is None:
+            logger.debug(f"No image captured at position {position}")
             return None
         
         text = self.ocr.extract_text(image)
-        if not text or text.confidence < 0.5:
+        if not text:
+            logger.debug(f"No text extracted from position {position}")
             return None
+        
+        if text.confidence < 0.5:
+            logger.debug(f"Low confidence OCR at position: {text.text} (conf: {text.confidence})")
+            return None
+        
+        logger.debug(f"OCR extracted: '{text.text}' with confidence {text.confidence}")
         
         # Parse player info from text
         lines = text.text.strip().split('\n')
